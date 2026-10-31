@@ -1,0 +1,116 @@
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+**SOC**       | Triage & prioritization |              Reduced | “What needs my attention now?”                         
+**Analyst**   | Investigation           |           Broad/deep | “Why did the engine reach this conclusion?”           **Executive** | Communication           |       Highly reduced | “What happened and why does it matter?”                **Forensic**  | Evidence/reference      | Essentially complete | “What exactly happened and what evidence supports it?”
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+SOC: “Here are the things the analyst should look at first.”
+
+SOC: prioritize it.
+Analyst: investigate it.
+
+Executive: The executive shouldn't have to understand why 398 authentication failures happened or inspect raw records. They need,
+1. What happened?
+2. How serious is it?
+3. What systems are affected?
+4. Is there evidence of compromise?
+5. What are we doing about it?
+
+Forensics: It retains essentially the full group dataset and exposes detailed evidence records. You can see it preserving things such as timestamps, source, agent, rule and original messages.
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+SOC: “What should I investigate?”
+Analyst: “Why?”
+Executive: “What does it mean?”
+Forensic: “Show me the evidence.”
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+                        SAME SECURITY ANALYSIS
+                                   │
+          ┌──────────────────┼──────────────────┐
+          │                        │                        │
+          ▼                        ▼                       ▼
+       SOC lens               Analyst lens          Executive lens
+          │                        │
+          └──────────────┬───┘
+                              │
+                              ▼
+                       Forensic lens
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+Observed — what was actually present in the logs
+Derived — what the engine calculated from those observations
+Inferred — what the engine believes those observations mean
+Not observed — what it looked for but did not find
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+Benchmarks:
+
+| Area                          | Before |       Now |
+| ----------------------------- | -----: | --------: |
+| Ingestion                     |      9 |          9|
+| Alert compression             |      7 |        8.5|
+| Correlation                   |      7 |          8|
+| Noise handling                |      7 |          8|
+| Risk scoring                  |      5 |          8|
+| Evidence extraction           |      6 |          9|
+| Contextual reasoning          |      5 |      7.5–8|
+| Confidence explanation        |      5 |        8.5|
+| MITRE/framework enrichment    |      6 |        7.5|
+| Remediation                   |      7 |          8|
+| Reporting                     |      8 |          9|
+| SOC usefulness                |      8 |          9|
+| Autonomous incident reasoning |      4 |      6.5–7|
+
+Overall: ~8.9/10
+
+Remarks: I would not call it a 9/10 autonomous SOC analyst yet. 
+         But I would call it a very strong SOC alert-intelligence and reporting engine.
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+
+## 1. Overall architecture
+`Flask app → background job (ThreadPoolExecutor) → 8-phase pipeline → in-memory result → report rendered on demand.`
+- No database, no queue service, single process. Can swap for Redis/a real queue if this becomes multi-instance.
+
+## 2. The pipeline
+`ingest → parse → normalize → correlate → mapping → risk → evidence_reasoning → timeline`
+- Risk scoring runs before `evidence_reasoning` because it needs `confidence_breakdown`, which risk.py computes.
+- Evidence reasoning runs after mapping because it needs the MITRE technique already resolved onto the group.
+
+## 3. Ingestion / parsing
+- Wazuh `alert_json` & `raw_logs`, Detection is a cheap heuristic: first non-whitespace char is `{` or `[` → JSON, else log.
+- Once a file's lines/records are parsed into events, the ingested object drops them.
+
+## 4. Correlation
+- Grouping is per event, not per event-type. An event type (Privilege Escalation) is grouped by (type, source_ip) in a rolling time window, only if it has a real attacker IP. Otherwise it falls back to (type, rule_id, agent) grouping with no time window.
+- Why not just window everything the same way? fixed mode table explodes into thousands of singleton groups.
+
+## 5. Risk scoring — expect the deepest questions here
+`RiskScore = SeverityBase × ConfidenceFactor × ImpactMultiplier + FrequencyBonus`
+- SeverityBase: 15/40/65/90 for low/med/high/critical — the dominant term, deliberately, so one Critical finding can hit the High band on severity alone.
+- ConfidenceFactor: built from how the event was classified structured Wazuh metadata beats keyword-guess beats unclassified.
+- ImpactMultiplier: modest swing by harm category (exfil/lateral-move/priv-esc weighted up).
+- FrequencyBonus: log-scaled, repetition nudges a score, it can't dominate it.
+
+## 6. Evidence reasoning
+The four-part structure to know: `observed` (literal facts only) / `derived` or `inferred` (explicitly labeled as a guess) / `not_observed` (states what evidence would need to exist to escalate further).
+
+## 7. Framework enrichment
+Not just MITRE — mapping.py covers MITRE ATT&CK, CWE, OWASP Top 10, NIST CSF, and CIS Controls, keyed per event type (~20 types covered). CVE IDs are pulled straight from extracted alert data, not looked up.
+
+## 8. Reporting
+- Two output formats: DOCX (python-docx) and PDF (reportlab, `SimpleDocTemplate`).
+- Four report modes: analyst / executive / soc / forensic — same underlying data, different verbosity/audience framing.
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+
+

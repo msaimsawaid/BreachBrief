@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breach Brief - Logs Correlation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='title.png') }}">
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand-word">
+    <img src="{{ url_for('static', filename='title.png') }}" alt="Icon" class="brand-icon">
+    <strong>Breach</strong><span class="rx"><strong>·Brief</strong></span>
+  </div>
+  <div class="tb-right">
+    <span class="tag" id="tb-status">no analysis loaded</span>
+    <button class="pill" id="btn-new">New Analysis</button>
+  </div>
+</div>
+
+<!-- ======================= LANDING / UPLOAD ======================= -->
+<div id="land">
+  <div class="land-inner">
+    <div class="tag">security log correlation & reporting engine</div>
+    <h1 id="land-motto">Every Scattered Alert,<br><span class="accent">One Correlated Story.</span></h1>
+    <p id="land-sub">Drop your Wazuh Exports. <strong>Breach Brief</strong> normalizes, correlates,
+      creates a timeline, maps it to MITRE ATT&CK / CWE / OWASP / NIST / CIS, scores risk, & exports a
+      professional report — entirely from a Python correlation core.</p>
+
+    <div id="dropzone">
+      <input type="file" id="file-input" multiple accept=".json,.log,.txt" hidden>
+      <div class="dz-title">Drop Your Files Here</div>
+      <div class="dz-hint">.JSON ALERTS &nbsp;·&nbsp; RAW LOGS &nbsp;·&nbsp; MULTIPLE FILES</div>
+      <div id="dz-filelist"></div>
+      <button class="pill solid" id="btn-browse" type="button">Choose Files</button>
+    </div>
+
+    <div class="land-row">
+      <button class="pill solid" id="btn-analyze" disabled>Run Correlation Engine →</button>
+      <button class="pill" id="btn-sample">Try Sample Incident</button>
+    </div>
+
+    <div id="land-error"></div>
+    <div id="land-loading">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div id="loading-msg">Parsing files…</div>
+      <div id="loading-pct">0%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= DASHBOARD ======================= -->
+<div id="dash">
+
+  <div id="statbar">
+    <div class="stat"><div class="v" id="s-files">0</div><div class="l">Files</div></div>
+    <div class="stat"><div class="v" id="s-raw">0</div><div class="l">Raw Events</div></div>
+    <div class="stat"><div class="v" id="s-agg">0</div><div class="l">Correlated</div></div>
+    <div class="stat"><div class="v" id="s-ips">0</div><div class="l">Source IPs</div></div>
+    <div class="stat risk"><div class="v" id="s-posture">—</div><div class="l">Risk Posture</div></div>
+    <div class="stat fp"><div class="v" id="s-fp">0</div><div class="l">Likely Noise</div></div>
+    <div class="stat-spacer"></div>
+    <label class="toggle-inline"><input type="checkbox" id="chk-hide-noise" checked> Hide likely noise</label>
+    <label class="mode-select-label">Report mode
+      <select id="report-mode-select">
+        <option value="analyst" selected>Analyst</option>
+        <option value="executive">Executive</option>
+        <option value="soc">SOC</option>
+        <option value="forensic">Forensic</option>
+      </select>
+    </label>
+    <button class="pill" id="btn-dl-docx">Export .DOCX</button>
+    <button class="pill solid" id="btn-dl-pdf">Export .PDF</button>
+  </div>
+
+  <div id="viewtabs">
+    <div class="vtab active" data-view="overview">Overview</div>
+    <div class="vtab" data-view="timeline">Timeline</div>
+    <div class="vtab" data-view="findings">Findings</div>
+    <div class="vtab" data-view="risk">Risk</div>
+    <div class="vtab" data-view="recs">Recommendations</div>
+  </div>
+
+  <div id="dash-body">
+
+    <!-- Overview -->
+    <section class="view active" id="view-overview">
+      <div class="card">
+        <div class="card-title">Attack Overview</div>
+        <table class="datatable" id="overview-table">
+          <thead><tr><th>Event Type</th><th>Count</th><th>Time Range</th><th>Source IP(s)</th><th>Severity</th><th>Confidence</th><th>Priority</th><th>Disposition</th><th>Risk</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="pager" id="overview-pager"></div>
+      </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="view" id="view-timeline">
+      <div class="card">
+        <div class="card-title">Chain of Custody</div>
+        <p class="narrative-p" id="timeline-summary"></p>
+        <div id="timeline-list"></div>
+      </div>
+    </section>
+
+    <!-- Findings -->
+    <section class="view" id="view-findings">
+      <div id="findings-list"></div>
+      <div class="pager" id="findings-pager"></div>
+    </section>
+
+    <!-- Risk -->
+    <section class="view" id="view-risk">
+      <div class="card">
+        <div class="card-title">Top Priority Threats</div>
+        <div id="risk-list"></div>
+      </div>
+    </section>
+
+    <!-- Recommendations -->
+    <section class="view" id="view-recs">
+      <div class="card">
+        <div class="card-title">Recommended Actions</div>
+        <div id="recs-list"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+<button id="btn-back-to-top" title="Go to top">◠</button>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

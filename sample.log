@@ -1,0 +1,6 @@
+Aug  6 10:30:01 db02 sshd[2001]: Failed password for invalid user oracle from 104.244.79.6 port 40011 ssh2
+Aug  6 10:30:04 db02 sshd[2002]: Failed password for invalid user postgres from 104.244.79.6 port 40012 ssh2
+Aug  6 10:30:09 db02 sshd[2003]: Failed password for invalid user admin from 104.244.79.6 port 40013 ssh2
+Aug  6 10:30:14 db02 sshd[2004]: Failed password for invalid user admin from 104.244.79.6 port 40014 ssh2
+Aug  6 10:35:02 db02 kernel: iptables: DROP IN=eth0 SRC=104.244.79.6 DST=10.0.0.20 port 3389
+Aug  6 10:40:00 db02 sshd[2010]: Accepted password for backup_svc from 10.0.0.5 port 22001 ssh2
